@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chat</title>
+
+    <style>
+      .body {
+        box-sizing: border-box;
+        width: 100%;
+        height: 100vh;
+        background-color: #b545d4;
+        display: flex;
+        margin: auto;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+      }
+      .modal {
+        position: absolute;
+        width: 100%;
+        height: 100vh;
+        z-index: 10000;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        background-color: rgba(0, 0, 0, 0.9);
+      }
+      .hidden {
+        display: none;
+        color: red;
+      }
+      .modal div {
+        background-color: #69d445;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        width: 40%;
+        height: 300px;
+        gap: 30px;
+      }
+      .modal div h1 {
+        font-size: 40px;
+      }
+      .modal div form {
+        width: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 10px;
+      }
+      .modal div form input {
+        width: 40%;
+        height: 30px;
+        outline: none;
+        border-radius: 10px;
+        padding-left: 10px;
+      }
+
+      .chatContainer {
+        box-sizing: border-box;
+        width: 40%;
+        height: 80vh;
+        background-color: #2c2f33;
+        display: none;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .chat {
+        width: 100%;
+        min-height: 80vh;
+        max-height: 80vh;
+        overflow-y: scroll;
+
+        background-color: #2c2f33;
+        display: block;
+        flex-direction: column;
+        gap: 10px;
+        margin: 0, 4px;
+        padding-right: 10px;
+        padding-left: 10px;
+        padding-bottom: 10px;
+      }
+      .msg {
+        text-decoration: none;
+        list-style: none;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 10px;
+        border-radius: 10px;
+        margin-bottom: 10px;
+      }
+      .color {
+        background-color: #ffa600;
+      }
+      .colorOtro {
+        background-color: #9e0eb9;
+      }
+
+      .left {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: start;
+        gap: 10px;
+      }
+      .right {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: end;
+        gap: 10px;
+      }
+      .inputContainer {
+        width: 100%;
+        height: 70%;
+        padding: 10px;
+        background-color: #23272a;
+        display: flex;
+        justify-content: space-around;
+        align-items: center;
+      }
+      .input {
+        width: 80%;
+        height: 30px;
+        outline: none;
+        padding-left: 10px;
+        border-radius: 10px;
+      }
+
+      .top {
+        width: 100%;
+        height: 30%;
+        padding: 10px;
+        display: flex;
+        justify-content: space-around;
+        background-color: #23272a;
+        color: white;
+        font-weight: 600;
+      }
+      .btn {
+        border-radius: 5px;
+        padding: 5px;
+        background-color: #b33a06;
+      }
+      .btn:hover {
+        color: white;
+      }
+      ::-webkit-scrollbar {
+        width: 10px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #23272a;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #69d445;
+        border-radius: 10px;
+      }
+      @media screen and (max-width: 480px) {
+        .chatContainer {
+          width: 100%;
+          height: 100vh;
+        }
+        .modal div {
+          width: 100%;
+          height: 100vh;
+        }
+      }
+    </style>
+  </head>
+  <body class="body">
+    <div class="modal" id="modal">
+      <div>
+        <h1>Bienvenido</h1>
+        <form id="formName">
+          <input
+            id="nameInput"
+            autofocus
+            autocomplete="off"
+            placeholder="Introduzca su nombre"
+            type="text"
+          /><button class="btn">Enviar</button>
+        </form>
+        <p id="error" class="hidden">Introduzca un nombre</p>
+      </div>
+    </div>
+    <div class="chatContainer" id="chatContainer">
+      <div id="count" class="top"><p id="name">Chat</p></div>
+      <div class="chat" id="chat"><div id="fin"></div></div>
+      <form id="formMsg" action="submit" class="inputContainer">
+        <input
+          id="inputMsg"
+          autocomplete="off"
+          autofocus
+          class="input"
+          type="text"
+        />
+        <button class="btn">Enviar</button>
+      </form>
+    </div>
+    <script src="socket.io/socket.io.js"></script>
+
+    <script>
+      const mensajes = [];
+      let nombrePlus = null;
+      const socket = io();
+      const form = document.querySelector("#formMsg");
+      const formName = document.querySelector("#formName");
+      const inputMsg = document.querySelector("#inputMsg");
+      const nameInput = document.querySelector("#nameInput");
+
+      const msgPlus = () => {
+        let todos = mensajes.map((mensaje) => {
+          return `<div class=${
+            nombrePlus == mensaje.nombre ? "right" : "left"
+          }><span>${
+            nombrePlus == mensaje.nombre ? "Yo" : mensaje.nombre
+          }</span> <div class="msg ${
+            nombrePlus == mensaje.nombre ? "color" : "colorOtro"
+          }">${mensaje.msg}</div></div>`;
+        });
+
+        document.querySelector("#chat").innerHTML = todos.join(" ");
+        inputMsg.value = "";
+        const div = document.querySelector("#chat");
+        div.scrollTop = div.scrollHeight;
+      };
+
+      const modalF = () => {
+        nombrePlus = nameInput.value;
+        if (nombrePlus) {
+          document.querySelector("#modal").style.display = "none";
+          document.querySelector("#chatContainer").style.display = "flex";
+          document.querySelector("#error").style.display = "none  ";
+          inputMsg.focus();
+        } else {
+          document.querySelector("#error").style.display = "block";
+        }
+      };
+
+      formName.addEventListener("submit", (e) => {
+        e.preventDefault();
+
+        modalF();
+      });
+
+      form.addEventListener("submit", (e) => {
+        e.preventDefault();
+        if (inputMsg.value) {
+          socket.emit("chat message", nombrePlus, inputMsg.value);
+          mensajes.push({ nombre: nombrePlus, msg: inputMsg.value });
+          msgPlus();
+          inputMsg.value = "";
+          return false;
+        }
+      });
+
+      socket.on("chat message", (nombre, msg) => {
+        const li = document.createElement("li");
+        li.classList.add("msg");
+
+        mensajes.push({ nombre, msg });
+        msgPlus();
+      });
+    </script>
+  </body>
+</html>
